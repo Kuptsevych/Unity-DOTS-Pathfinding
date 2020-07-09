@@ -8,9 +8,9 @@ public class UnitEnableSelectionSystem : ComponentSystem
 
 	protected override void OnCreate()
 	{
-		var queryDesc = new EntityQueryDesc()
+		var queryDesc = new EntityQueryDesc
 		{
-			All = new ComponentType[]
+			All = new[]
 			{
 				typeof(UnitController),
 				ComponentType.ReadOnly<Unit>(),
@@ -25,8 +25,7 @@ public class UnitEnableSelectionSystem : ComponentSystem
 	protected override void OnUpdate()
 	{
 		//todo system to process player selection changes (player selected visual changes)
-
-		//todo возможно нужна система с пулом для объектов
+		
 		var unitControllers = _entityQuery.ToComponentDataArray<UnitController>(Allocator.TempJob);
 
 		for (int i = 0; i < unitControllers.Length; i++)

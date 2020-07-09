@@ -42,7 +42,11 @@ public class SelectSystem : ComponentSystem
 
 	protected override void OnStartRunning()
 	{
-		_grid = _worldQuery.ToComponentArray<Grid>()[0];
+		var grids = _worldQuery.ToComponentArray<Grid>();
+
+		if (grids.Length == 0) return;
+		
+		_grid = grids[0];
 		var tilemap = _worldQuery.ToComponentArray<Tilemap>()[0];
 
 		Vector3 cellSize   = tilemap.cellSize;
@@ -59,7 +63,7 @@ public class SelectSystem : ComponentSystem
 
 		var select = _entityQuery.GetSingleton<SelectSingletoneComponent>();
 
-		//todo нужно понять это юай или карта OnHoverUICheck
+		//todo OnHoverUICheck
 
 		if (select.InputIndex != input.Index)
 		{
@@ -85,11 +89,11 @@ public class SelectSystem : ComponentSystem
 				{
 					if (IsSelectable(cellData.ContentType))
 					{
-						//todo check
+						//todo checks
 						// check if selected buildins
 						// check if can attack
 						// check if can pickup or any other actions by default
-						// проверить если повторна на того же юнита нажал
+						// check if click again
 
 						//check fraction if non equal attack else select instead
 
@@ -99,11 +103,7 @@ public class SelectSystem : ComponentSystem
 						}
 						else
 						{
-							
-							
-							
-							
-							//TODO проверка на повторное нажатие, чтобы снять виделение
+							//TODO unselect on second click
 							//ReleaseSelected();
 							PostUpdateCommands.AddComponent<Selected>(cellData.ContentEntity);
 						}
@@ -167,7 +167,7 @@ public class SelectSystem : ComponentSystem
 			{
 				PostUpdateCommands.RemoveComponent<Path>(entity);
 			}
-			
+
 			if (!entityManager.HasComponent<MoveTo>(entity))
 			{
 				PostUpdateCommands.AddComponent<MoveTo>(entity);

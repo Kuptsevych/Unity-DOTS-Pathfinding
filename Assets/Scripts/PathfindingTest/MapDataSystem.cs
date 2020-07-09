@@ -9,8 +9,6 @@ public class MapDataSystem : ComponentSystem
 {
 	public NativeHashMap<int2, CellData> MapData;
 
-	private Grid _grid;
-
 	public struct CellData
 	{
 		public int2   Coord;
@@ -32,7 +30,6 @@ public class MapDataSystem : ComponentSystem
 
 	protected override void OnStartRunning()
 	{
-		_grid = _worldQuery.ToComponentArray<Grid>()[0];
 		var tilemap = _worldQuery.ToComponentArray<Tilemap>()[0];
 
 		EntityArchetype archetypeNode = EntityManager.CreateArchetype(typeof(Node));

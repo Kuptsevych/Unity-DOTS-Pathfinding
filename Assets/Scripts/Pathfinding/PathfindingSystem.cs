@@ -304,8 +304,8 @@ namespace Pathfinding
 			if (_closeSet.IsCreated) _closeSet.Dispose();
 			if (_openSet.IsCreated) _openSet.Dispose();
 
-			_closeSet = new NativeHashMap<int, int2>(NodesMap.Length, Allocator.TempJob);
-			_openSet  = new NativeHashMap<int, int2>(NodesMap.Length, Allocator.TempJob);
+			_closeSet = new NativeHashMap<int, int2>(NodesMap.Count(), Allocator.TempJob);
+			_openSet  = new NativeHashMap<int, int2>(NodesMap.Count(), Allocator.TempJob);
 
 			var pathfindingJob = new PathfindingJob
 			{

@@ -22,7 +22,6 @@ public class DebugDrawCellsDataSystem : ComponentSystem
 
 	protected override void OnUpdate()
 	{
-		return;
 		var nodes = _entityQuery.ToComponentDataArray<Node>(Allocator.TempJob);
 
 		for (var i = 0; i < nodes.Length; i++)

@@ -2,7 +2,6 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-[UpdateBefore(typeof(UnitControllerSystem))]
 public class InputSystem : ComponentSystem
 {
 	private EntityQuery _entityQuery;

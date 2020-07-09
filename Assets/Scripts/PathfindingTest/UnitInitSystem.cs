@@ -10,10 +10,10 @@ public class UnitInitSystem : ComponentSystem
 
 	protected override void OnCreate()
 	{
-		var queryDesc = new EntityQueryDesc()
+		var queryDesc = new EntityQueryDesc
 		{
-			None = new ComponentType[] {typeof(Initialized)},
-			All  = new ComponentType[] {typeof(UnitController), ComponentType.ReadOnly<Unit>()}
+			None = new[] {ComponentType.ReadOnly<Initialized>()},
+			All  = new[] {ComponentType.ReadOnly<UnitMovement>(), ComponentType.ReadOnly<Unit>()}
 		};
 
 		_entityQuery = GetEntityQuery(queryDesc);
@@ -27,7 +27,7 @@ public class UnitInitSystem : ComponentSystem
 	protected override void OnUpdate()
 	{
 		var units       = _entityQuery.ToComponentDataArray<Unit>(Allocator.TempJob);
-		var controllers = _entityQuery.ToComponentDataArray<UnitController>(Allocator.TempJob);
+		var movements = _entityQuery.ToComponentDataArray<UnitMovement>(Allocator.TempJob);
 
 		var entities = _entityQuery.ToEntityArray(Allocator.TempJob);
 
@@ -36,27 +36,27 @@ public class UnitInitSystem : ComponentSystem
 			PostUpdateCommands.AddComponent<Initialized>(entities[i]);
 
 			var unit       = units[i];
-			var controller = controllers[i];
+			var move = movements[i];
 
-			if (_mapDataSystem.MapData.TryGetValue(controller.CurrentCellCoord, out var cellData))
+			if (_mapDataSystem.MapData.TryGetValue(move.CurrentCellCoord, out var cellData))
 			{
 				cellData.ContentType   = CellContentTypes.UNIT;
 				cellData.Fraction      = unit.Fraction;
 				cellData.ContentEntity = entities[i];
 
-				_mapDataSystem.MapData[controller.CurrentCellCoord] = cellData;
+				_mapDataSystem.MapData[move.CurrentCellCoord] = cellData;
 			}
 			else
 			{
-				Debug.LogError("MapData for unit coord not found::" + controller.CurrentCellCoord);
+				Debug.LogError("MapData for unit coord not found::" + move.CurrentCellCoord);
 			}
 		}
 
 		_entityQuery.CopyFromComponentDataArray(units);
-		_entityQuery.CopyFromComponentDataArray(controllers);
+		_entityQuery.CopyFromComponentDataArray(movements);
 
 		units.Dispose();
-		controllers.Dispose();
+		movements.Dispose();
 		entities.Dispose();
 	}
 }

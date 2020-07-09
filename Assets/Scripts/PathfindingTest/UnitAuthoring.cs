@@ -31,7 +31,7 @@ namespace Pathfinding
 
 			dstManager.AddComponentData(entity, new CopyTransformToGameObject());
 
-			var selectionArchetype = dstManager.CreateArchetype(typeof(SpriteRenderer), typeof(Transform), typeof(Selection));
+			var selectionArchetype = dstManager.CreateArchetype(typeof(SpriteRenderer), typeof(Selection));
 
 			var selectionEntity = dstManager.CreateEntity(selectionArchetype);
 
@@ -45,9 +45,13 @@ namespace Pathfinding
 
 			dstManager.AddComponentData(entity, new UnitController
 			{
-				CurrentCellCoord = currentCellCoord,
+				SelectionEntity = selectionEntity
+			});
+
+			dstManager.AddComponentData(entity, new UnitMovement
+			{
 				Speed            = Speed,
-				SelectionEntity  = selectionEntity
+				CurrentCellCoord = currentCellCoord,
 			});
 		}
 	}

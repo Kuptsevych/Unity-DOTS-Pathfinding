@@ -8,13 +8,13 @@ public class UnitDisableSelectionSystem : ComponentSystem
 
 	protected override void OnCreate()
 	{
-		var queryDesc = new EntityQueryDesc()
+		var queryDesc = new EntityQueryDesc
 		{
-			None = new ComponentType[]
+			None = new[]
 			{
 				ComponentType.ReadOnly<Selected>()
 			},
-			All = new ComponentType[]
+			All = new[]
 			{
 				typeof(UnitController),
 				ComponentType.ReadOnly<Unit>(),

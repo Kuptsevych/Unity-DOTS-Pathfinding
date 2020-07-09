@@ -2,124 +2,150 @@ using Pathfinding;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.Tilemaps;
 
 [UpdateAfter(typeof(SelectSystem))]
 public class UnitMovementSystem : ComponentSystem
 {
 	private EntityQuery _entityQuery;
+	private EntityQuery _worldQuery;
 
 	private BufferFromEntity<PathNode> _pathBuffer;
 
 	private MapDataSystem _mapDataSystem;
+	private Grid          _grid;
 
 	protected override void OnCreate()
 	{
-		var queryDesc = new EntityQueryDesc()
+		var queryDesc = new EntityQueryDesc
 		{
-			All = new [] {typeof(UnitController), ComponentType.ReadOnly<Unit>(), ComponentType.ReadOnly<Path>()}
+			All = new[]
+			{
+				typeof(UnitMovement),
+				ComponentType.ReadOnly<Unit>(),
+				ComponentType.ReadOnly<Path>()
+			}
 		};
 
 		_entityQuery = GetEntityQuery(queryDesc);
+
+		_worldQuery = GetEntityQuery(typeof(Grid), typeof(Tilemap));
 	}
 
 	protected override void OnStartRunning()
 	{
 		_mapDataSystem = EntityManager.World.GetExistingSystem<MapDataSystem>();
+		_grid          = _worldQuery.ToComponentArray<Grid>()[0];
 	}
 
 	protected override void OnUpdate()
 	{
-		var unitControllers = _entityQuery.ToComponentDataArray<UnitController>(Allocator.TempJob);
-		var units           = _entityQuery.ToComponentDataArray<Unit>(Allocator.TempJob);
-		var pathes          = _entityQuery.ToComponentDataArray<Path>(Allocator.TempJob);
-		var entities        = _entityQuery.ToEntityArray(Allocator.TempJob);
+		var units    = _entityQuery.ToComponentDataArray<Unit>(Allocator.TempJob);
+		var pathes   = _entityQuery.ToComponentDataArray<Path>(Allocator.TempJob);
+		var entities = _entityQuery.ToEntityArray(Allocator.TempJob);
+		var movement = _entityQuery.ToComponentDataArray<UnitMovement>(Allocator.TempJob);
 
 		_pathBuffer = GetBufferFromEntity<PathNode>(true);
 
 		float dt = Time.DeltaTime;
 
-		for (int i = 0; i < unitControllers.Length; i++)
+		for (int i = 0; i < entities.Length; i++)
 		{
-			var unitController = unitControllers[i];
-			var path           = pathes[i];
-
-			if (unitController.IsMoving) continue;
+			var path = pathes[i];
+			var move = movement[i];
 
 			if (!path.InProgress)
 			{
 				if (path.Reachable)
 				{
-					DynamicBuffer<PathNode> pathNodeBuffer = _pathBuffer[entities[i]];
-
-					int pathPosIndex = math.max(pathNodeBuffer.Length - 1 - unitController.PathPos, 0);
-
-					PathNode pathPos = pathNodeBuffer[pathPosIndex];
-
-					if (unitController.CurrentCellCoord.x != pathPos.Coord.x || unitController.CurrentCellCoord.y != pathPos.Coord.y)
+					if (move.IsMoving)
 					{
-						var mapData = _mapDataSystem.MapData[pathPos.Coord];
+						move.StepProgress += dt * move.Speed;
 
-						if (mapData.ContentEntity != Entity.Null)
+						if (move.StepProgress >= 1f)
 						{
-							unitController.WaitTimer += dt;
-
-							if (unitController.WaitTimer > 1f)
-							{
-								PostUpdateCommands.RemoveComponent<Path>(entities[i]);
-								unitController.RefreshClick = true;
-							}
-
-							unitControllers[i] = unitController;
-							continue;
+							SwitchMapData(move, units[i], entities[i], move.TargetCellCoord);
+							move.StepProgress     = 1f;
+							move.IsMoving         = false;
+							move.CurrentCellCoord = move.TargetCellCoord;
 						}
-
-						unitController.WaitTimer       =  0;
-						unitController.IsMoving        =  true;
-						unitController.TargetCellCoord =  pathPos.Coord;
-						unitController.PathPos         += 1;
-
-						SwitchMapData(unitController, units[i], entities[i], pathPos.Coord);
 					}
 					else
 					{
-						if (unitController.PathPos < pathNodeBuffer.Length - 1)
+						DynamicBuffer<PathNode> pathNodeBuffer = _pathBuffer[entities[i]];
+
+						int pathPosIndex = math.max(pathNodeBuffer.Length - 1 - move.PathPositionIndex, 0);
+
+						PathNode pathPos = pathNodeBuffer[pathPosIndex];
+
+						if (move.CurrentCellCoord.x != pathPos.Coord.x || move.CurrentCellCoord.y != pathPos.Coord.y)
 						{
-							unitController.PathPos += 1;
+							var mapData = _mapDataSystem.MapData[pathPos.Coord];
+
+							if (mapData.ContentEntity != Entity.Null)
+							{
+								move.WaitTimer += dt;
+
+								if (move.WaitTimer > 1f)
+								{
+									PostUpdateCommands.RemoveComponent<Path>(entities[i]);
+								}
+
+								movement[i] = move;
+								continue;
+							}
+
+							move.WaitTimer               =  0;
+							move.IsMoving                =  true;
+							move.StepProgress            =  0f;
+							move.TargetCellCoord         =  pathPos.Coord;
+							move.TargetTransformPosition =  _grid.CellToWorld(new Vector3Int(move.TargetCellCoord.x, move.TargetCellCoord.y, 0));
+							move.PathPositionIndex       += 1;
 						}
 						else
 						{
-							PostUpdateCommands.RemoveComponent<Path>(entities[i]);
-							unitController.RefreshClick = true;
+							if (move.PathPositionIndex < pathNodeBuffer.Length - 1)
+							{
+								move.PathPositionIndex += 1;
+							}
+							else
+							{
+								PostUpdateCommands.RemoveComponent<Path>(entities[i]);
+							}
 						}
 					}
 				}
 				else
 				{
 					PostUpdateCommands.RemoveComponent<Path>(entities[i]);
-					unitController.RefreshClick = true;
 				}
 			}
+			else
+			{
+				move = UnitMovement.Reset(move);
+			}
 
-			unitControllers[i] = unitController;
+			movement[i] = move;
 		}
 
-		_entityQuery.CopyFromComponentDataArray(unitControllers);
+		_entityQuery.CopyFromComponentDataArray(movement);
 
-		unitControllers.Dispose();
 		pathes.Dispose();
 		entities.Dispose();
 		units.Dispose();
+		movement.Dispose();
 	}
 
-	private void SwitchMapData(UnitController unitController, Unit unit, Entity unitEntity, int2 targetCoord)
+	private void SwitchMapData(UnitMovement unitMovement, Unit unit, Entity unitEntity, int2 targetCoord)
 	{
-		var currentData = _mapDataSystem.MapData[unitController.CurrentCellCoord];
+		var currentData = _mapDataSystem.MapData[unitMovement.CurrentCellCoord];
 
 		currentData.Fraction      = Fractions.NEUTRAL;
 		currentData.ContentType   = CellContentTypes.EMPTY;
 		currentData.ContentEntity = Entity.Null;
 
-		_mapDataSystem.MapData[unitController.CurrentCellCoord] = currentData;
+		_mapDataSystem.MapData[unitMovement.CurrentCellCoord] = currentData;
 
 		var nextData = _mapDataSystem.MapData[targetCoord];
 
